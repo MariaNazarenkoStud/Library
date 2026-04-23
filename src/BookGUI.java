@@ -2,9 +2,12 @@ import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableRowSorter;
 import java.awt.*;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
+import java.util.logging.Logger;
 
 /**
  * Main application window for the Book Catalogue desktop application.
@@ -31,6 +34,8 @@ import java.util.List;
  * @see Book
  */
 public class BookGUI extends JFrame {
+
+    private static final Logger LOGGER = AppLogger.getLogger(BookGUI.class);
 
     private final Catalogue catalogue = new Catalogue();
 
@@ -80,7 +85,7 @@ public class BookGUI extends JFrame {
      */
     public BookGUI() {
         setTitle("Book Catalogue");
-        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
         setLayout(new BorderLayout(10, 10));
 
         genreCombo.addItem("All genres");
@@ -94,9 +99,20 @@ public class BookGUI extends JFrame {
         add(new JScrollPane(table), BorderLayout.CENTER);
         add(southPanel, BorderLayout.SOUTH);
 
+        // Log application shutdown when window is closed
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                LOGGER.info("Application shutting down — user closed the window.");
+                dispose();
+            }
+        });
+
         pack();
         setMinimumSize(new Dimension(950, 500));
         setLocationRelativeTo(null);
+
+        LOGGER.info("BookGUI initialised. Application ready.");
     }
 
     /**
@@ -213,13 +229,17 @@ public class BookGUI extends JFrame {
         int year;
 
         if (title.isEmpty() || author.isEmpty()) {
+            LOGGER.warning("Add rejected: title or author is empty. title='"
+                    + title + "' author='" + author + "'");
             setStatus("Title and Author are required.", true);
             return;
         }
         try {
             year = Integer.parseInt(yearField.getText().trim());
         } catch (NumberFormatException ex) {
-            setStatus("Year must be a valid number.", true);
+            ErrorHandler.warn(Messages.get("error.invalid.year"), "onAdd",
+                    "yearInput='" + yearField.getText().trim() + "'");
+            setStatus(Messages.get("error.invalid.year"), true);
             return;
         }
 
@@ -240,6 +260,7 @@ public class BookGUI extends JFrame {
     private void onRemove() {
         String title = titleField.getText().trim();
         if (title.isEmpty()) {
+            LOGGER.warning("Remove rejected: title field is empty.");
             setStatus("Enter title to remove.", true);
             return;
         }
@@ -250,6 +271,7 @@ public class BookGUI extends JFrame {
             clearFields();
             setStatus("Book '" + title + "' removed.", false);
         } catch (BookNotFoundException ex) {
+            ErrorHandler.warn(ex.getMessage(), "onRemove", "title='" + title + "'");
             setStatus(ex.getMessage(), true);
         }
     }
@@ -263,6 +285,7 @@ public class BookGUI extends JFrame {
     private void onUpdate() {
         String title = titleField.getText().trim();
         if (title.isEmpty()) {
+            LOGGER.warning("Update rejected: title field is empty.");
             setStatus("Enter title to update.", true);
             return;
         }
@@ -276,16 +299,20 @@ public class BookGUI extends JFrame {
                     try {
                         book.setYear(Integer.parseInt(yearField.getText().trim()));
                     } catch (NumberFormatException ex) {
-                        setStatus("Year must be a valid number.", true);
+                        ErrorHandler.warn(Messages.get("error.invalid.year"), "onUpdate",
+                                "yearInput='" + yearField.getText().trim() + "'");
+                        setStatus(Messages.get("error.invalid.year"), true);
                         return;
                     }
                 }
+                LOGGER.info("Updated book: '" + title + "'");
             }
             refreshTable(catalogue.getAllPublications());
             refreshGenreCombo();
             clearFields();
             setStatus("Book '" + title + "' updated.", false);
         } catch (BookNotFoundException ex) {
+            ErrorHandler.warn(ex.getMessage(), "onUpdate", "title='" + title + "'");
             setStatus(ex.getMessage(), true);
         }
     }
@@ -295,15 +322,20 @@ public class BookGUI extends JFrame {
      *
      * <p>Opens a {@link JFileChooser} and delegates serialisation to
      * {@link Catalogue#saveToFile(String)}.
+     * On failure shows a {@link UserErrorDialog} with the error ID.
      */
     private void onSave() {
         JFileChooser chooser = new JFileChooser();
         if (chooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+            String path = chooser.getSelectedFile().getAbsolutePath();
             try {
-                catalogue.saveToFile(chooser.getSelectedFile().getAbsolutePath());
+                catalogue.saveToFile(path);
                 setStatus("Catalogue saved.", false);
             } catch (IOException ex) {
-                setStatus("Save error: " + ex.getMessage(), true);
+                ErrorHandler.ErrorReport report =
+                        ErrorHandler.handle(ex, "saveToFile", "path=" + path);
+                setStatus("[" + report.id() + "] Save failed.", true);
+                UserErrorDialog.show(this, report, Messages.get("error.save.failed"));
             }
         }
     }
@@ -314,17 +346,22 @@ public class BookGUI extends JFrame {
      * <p>Opens a {@link JFileChooser} and delegates deserialisation to
      * {@link Catalogue#loadFromFile(String)}. Refreshes the table and genre combo
      * after a successful load.
+     * On failure shows a {@link UserErrorDialog} with the error ID.
      */
     private void onLoad() {
         JFileChooser chooser = new JFileChooser();
         if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+            String path = chooser.getSelectedFile().getAbsolutePath();
             try {
-                catalogue.loadFromFile(chooser.getSelectedFile().getAbsolutePath());
+                catalogue.loadFromFile(path);
                 refreshTable(catalogue.getAllPublications());
                 refreshGenreCombo();
                 setStatus("Catalogue loaded.", false);
             } catch (IOException | ClassNotFoundException ex) {
-                setStatus("Load error: " + ex.getMessage(), true);
+                ErrorHandler.ErrorReport report =
+                        ErrorHandler.handle(ex, "loadFromFile", "path=" + path);
+                setStatus("[" + report.id() + "] Load failed.", true);
+                UserErrorDialog.show(this, report, Messages.get("error.load.failed"));
             }
         }
     }
@@ -373,16 +410,21 @@ public class BookGUI extends JFrame {
      *
      * <p>Opens a save dialog pre-filled with {@code catalogue.csv} and delegates to
      * {@link Catalogue#exportToCSV(String)}.
+     * On failure shows a {@link UserErrorDialog} with the error ID.
      */
     private void onExportCSV() {
         JFileChooser chooser = new JFileChooser();
         chooser.setSelectedFile(new File("catalogue.csv"));
         if (chooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+            String path = chooser.getSelectedFile().getAbsolutePath();
             try {
-                catalogue.exportToCSV(chooser.getSelectedFile().getAbsolutePath());
+                catalogue.exportToCSV(path);
                 setStatus("Exported to " + chooser.getSelectedFile().getName(), false);
             } catch (IOException ex) {
-                setStatus("Export error: " + ex.getMessage(), true);
+                ErrorHandler.ErrorReport report =
+                        ErrorHandler.handle(ex, "exportToCSV", "path=" + path);
+                setStatus("[" + report.id() + "] Export failed.", true);
+                UserErrorDialog.show(this, report, Messages.get("error.export.failed"));
             }
         }
     }
@@ -409,6 +451,9 @@ public class BookGUI extends JFrame {
             byGenre.forEach((genre, count) ->
                     sb.append("  ").append(genre).append(": ").append(count).append("\n"));
         }
+
+        LOGGER.fine("Statistics dialog opened: total=" + total
+                + " authors=" + authors + " genres=" + byGenre.size());
 
         JTextArea area = new JTextArea(sb.toString());
         area.setEditable(false);
@@ -485,6 +530,11 @@ public class BookGUI extends JFrame {
     private void setStatus(String message, boolean error) {
         statusLabel.setForeground(error ? Color.RED : new Color(0, 120, 0));
         statusLabel.setText(" " + message);
+        if (error) {
+            LOGGER.warning("Status (error): " + message);
+        } else {
+            LOGGER.fine("Status: " + message);
+        }
     }
 
     /**
@@ -496,6 +546,17 @@ public class BookGUI extends JFrame {
      * @param args command-line arguments (not used)
      */
     public static void main(String[] args) {
+        AppLogger.configure();
+        Logger log = AppLogger.getLogger(BookGUI.class);
+        log.info("=== Book Catalogue starting up ==="
+                + " | java=" + System.getProperty("java.version")
+                + " | os=" + System.getProperty("os.name")
+                + " | level=" + Logger.getLogger("").getLevel());
+
+        // Shutdown hook — logs application stop even on abnormal exit
+        Runtime.getRuntime().addShutdownHook(new Thread(() ->
+                log.info("=== Book Catalogue stopped ==="), "shutdown-logger"));
+
         SwingUtilities.invokeLater(() -> {
             try {
                 UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());

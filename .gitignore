@@ -49,3 +49,7 @@ javadoc-docs.zip
 # Build output
 dist/
 out/
+
+# Log files
+logs/
+*.log
