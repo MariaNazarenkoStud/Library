@@ -42,3 +42,6 @@ nbdist/
 
 # Logs
 *.log
+
+# Documentation archive (submitted separately)
+javadoc-docs.zip

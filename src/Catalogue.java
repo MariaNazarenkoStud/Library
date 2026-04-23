@@ -33,6 +33,11 @@ public class Catalogue {
     private ArrayList<Publication> publications = new ArrayList<>();
 
     /**
+     * Constructs a new empty {@code Catalogue}.
+     */
+    public Catalogue() {}
+
+    /**
      * Adds a publication to the catalogue.
      *
      * @param p the publication to add; must not be {@code null}
