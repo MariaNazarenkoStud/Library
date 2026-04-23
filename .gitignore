@@ -45,3 +45,7 @@ nbdist/
 
 # Documentation archive (submitted separately)
 javadoc-docs.zip
+
+# Build output
+dist/
+out/
