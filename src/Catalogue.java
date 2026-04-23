@@ -1,6 +1,8 @@
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Core in-memory catalogue that stores and manages a collection of {@link Publication} objects.
@@ -29,6 +31,8 @@ import java.util.List;
  */
 public class Catalogue {
 
+    private static final Logger LOGGER = AppLogger.getLogger(Catalogue.class);
+
     /** Internal storage for all publications. Never {@code null}. */
     private ArrayList<Publication> publications = new ArrayList<>();
 
@@ -44,6 +48,7 @@ public class Catalogue {
      */
     public void addPublication(Publication p) {
         publications.add(p);
+        LOGGER.info("Added publication: '" + p.getTitle() + "' (" + p.getYear() + ")");
     }
 
     /**
@@ -55,6 +60,7 @@ public class Catalogue {
     public void removePublicationByTitle(String title) throws BookNotFoundException {
         Publication found = findPublicationByTitle(title);
         publications.remove(found);
+        LOGGER.info("Removed publication: '" + title + "'");
     }
 
     /**
@@ -68,9 +74,12 @@ public class Catalogue {
     public Publication findPublicationByTitle(String title) throws BookNotFoundException {
         for (Publication p : publications) {
             if (p.getTitle().equalsIgnoreCase(title)) {
+                LOGGER.fine("Found publication: '" + title + "'");
                 return p;
             }
         }
+        LOGGER.warning("Publication not found: '" + title + "' (total in catalogue: "
+                + publications.size() + ")");
         throw new BookNotFoundException(title);
     }
 
@@ -93,13 +102,14 @@ public class Catalogue {
      * @return a list of matching publications; empty if none found
      */
     public List<Publication> searchByTitle(String query) {
-        List<Publication> result = new ArrayList<>();
         String lowerQuery = query.toLowerCase();
+        List<Publication> result = new ArrayList<>();
         for (Publication p : publications) {
             if (p.getTitle().toLowerCase().contains(lowerQuery)) {
                 result.add(p);
             }
         }
+        LOGGER.fine("searchByTitle('" + query + "') → " + result.size() + " result(s)");
         return result;
     }
 
@@ -113,13 +123,14 @@ public class Catalogue {
      * @return a list of matching books; empty if none found
      */
     public List<Publication> searchByAuthor(String query) {
-        List<Publication> result = new ArrayList<>();
         String lowerQuery = query.toLowerCase();
+        List<Publication> result = new ArrayList<>();
         for (Publication p : publications) {
             if (p instanceof Book b && b.getAuthor().toLowerCase().contains(lowerQuery)) {
                 result.add(p);
             }
         }
+        LOGGER.fine("searchByAuthor('" + query + "') → " + result.size() + " result(s)");
         return result;
     }
 
@@ -137,6 +148,7 @@ public class Catalogue {
                 result.add(p);
             }
         }
+        LOGGER.fine("filterByGenre('" + genre + "') → " + result.size() + " result(s)");
         return result;
     }
 
@@ -203,14 +215,21 @@ public class Catalogue {
      * @throws IOException if an I/O error occurs while writing the file
      */
     public void exportToCSV(String filename) throws IOException {
+        LOGGER.info("Exporting catalogue to CSV: " + filename);
         try (PrintWriter pw = new PrintWriter(new FileWriter(filename))) {
             pw.println("Title,Author,Publisher,Year,Genre");
+            int count = 0;
             for (Publication p : publications) {
                 if (p instanceof Book b) {
                     pw.printf("\"%s\",\"%s\",\"%s\",%d,\"%s\"%n",
                             b.getTitle(), b.getAuthor(), b.getPublisher(), b.getYear(), b.getGenre());
+                    count++;
                 }
             }
+            LOGGER.info("CSV export complete: " + count + " book(s) written to " + filename);
+        } catch (IOException e) {
+            LOGGER.log(Level.SEVERE, "CSV export failed for file: " + filename, e);
+            throw e;
         }
     }
 
@@ -223,8 +242,14 @@ public class Catalogue {
      * @throws IOException if the file cannot be created or written
      */
     public void saveToFile(String filename) throws IOException {
+        LOGGER.info("Saving catalogue to file: " + filename
+                + " (" + publications.size() + " publication(s))");
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(filename))) {
             oos.writeObject(publications);
+            LOGGER.info("Catalogue saved successfully: " + filename);
+        } catch (IOException e) {
+            LOGGER.log(Level.SEVERE, "Failed to save catalogue to: " + filename, e);
+            throw e;
         }
     }
 
@@ -239,8 +264,14 @@ public class Catalogue {
      */
     @SuppressWarnings("unchecked")
     public void loadFromFile(String filename) throws IOException, ClassNotFoundException {
+        LOGGER.info("Loading catalogue from file: " + filename);
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(filename))) {
             publications = (ArrayList<Publication>) ois.readObject();
+            LOGGER.info("Catalogue loaded: " + publications.size()
+                    + " publication(s) from " + filename);
+        } catch (IOException | ClassNotFoundException e) {
+            LOGGER.log(Level.SEVERE, "Failed to load catalogue from: " + filename, e);
+            throw e;
         }
     }
 }

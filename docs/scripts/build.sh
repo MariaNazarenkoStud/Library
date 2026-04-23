@@ -25,6 +25,9 @@ mkdir -p "$OUT_DIR"
 javac -d "$OUT_DIR" src/*.java
 echo "      Compilation successful."
 
+# Copy resource files (.properties) to output so they land on the classpath
+cp "$ROOT_DIR"/src/*.properties "$OUT_DIR/" 2>/dev/null || true
+
 # --- Step 2: Package JAR ---
 echo "[2/3] Packaging $JAR_NAME..."
 mkdir -p "$DIST_DIR"
