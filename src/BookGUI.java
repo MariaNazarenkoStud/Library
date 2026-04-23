@@ -1,5 +1,6 @@
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableRowSorter;
 import java.awt.*;
 import java.io.File;
 import java.io.IOException;
@@ -24,6 +25,11 @@ public class BookGUI extends JFrame {
         public boolean isCellEditable(int row, int column) {
             return false;
         }
+
+        @Override
+        public Class<?> getColumnClass(int columnIndex) {
+            return columnIndex == 3 ? Integer.class : String.class;
+        }
     };
     private final JTable table = new JTable(tableModel);
 
@@ -35,6 +41,7 @@ public class BookGUI extends JFrame {
         setLayout(new BorderLayout(10, 10));
 
         genreCombo.addItem("All genres");
+        table.setRowSorter(new TableRowSorter<>(tableModel));
 
         JPanel southPanel = new JPanel(new BorderLayout());
         southPanel.add(buildButtonPanel(), BorderLayout.CENTER);
