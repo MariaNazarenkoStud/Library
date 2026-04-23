@@ -60,6 +60,24 @@ public class Catalogue {
         return result;
     }
 
+    public long countUniqueAuthors() {
+        return publications.stream()
+                .filter(p -> p instanceof Book)
+                .map(p -> ((Book) p).getAuthor())
+                .distinct()
+                .count();
+    }
+
+    public java.util.Map<String, Long> countByGenre() {
+        java.util.Map<String, Long> map = new java.util.LinkedHashMap<>();
+        for (String genre : getDistinctGenres()) {
+            map.put(genre, publications.stream()
+                    .filter(p -> p instanceof Book b && b.getGenre().equalsIgnoreCase(genre))
+                    .count());
+        }
+        return map;
+    }
+
     public List<String> getDistinctGenres() {
         return publications.stream()
                 .filter(p -> p instanceof Book)

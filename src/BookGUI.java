@@ -120,6 +120,7 @@ public class BookGUI extends JFrame {
         JButton saveBtn = new JButton("Save to file");
         JButton loadBtn = new JButton("Load from file");
         JButton exportBtn = new JButton("Export CSV");
+        JButton statsBtn = new JButton("Statistics");
 
         addBtn.addActionListener(e -> onAdd());
         removeBtn.addActionListener(e -> onRemove());
@@ -127,6 +128,7 @@ public class BookGUI extends JFrame {
         saveBtn.addActionListener(e -> onSave());
         loadBtn.addActionListener(e -> onLoad());
         exportBtn.addActionListener(e -> onExportCSV());
+        statsBtn.addActionListener(e -> onShowStatistics());
 
         panel.add(addBtn);
         panel.add(removeBtn);
@@ -134,6 +136,7 @@ public class BookGUI extends JFrame {
         panel.add(saveBtn);
         panel.add(loadBtn);
         panel.add(exportBtn);
+        panel.add(statsBtn);
 
         return panel;
     }
@@ -270,6 +273,31 @@ public class BookGUI extends JFrame {
                 setStatus("Export error: " + ex.getMessage(), true);
             }
         }
+    }
+
+    private void onShowStatistics() {
+        int total = catalogue.getAllPublications().size();
+        long authors = catalogue.countUniqueAuthors();
+        java.util.Map<String, Long> byGenre = catalogue.countByGenre();
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("Total books:      ").append(total).append("\n");
+        sb.append("Unique authors:   ").append(authors).append("\n");
+        sb.append("Unique genres:    ").append(byGenre.size()).append("\n");
+
+        if (!byGenre.isEmpty()) {
+            sb.append("\nBooks by genre:\n");
+            byGenre.forEach((genre, count) ->
+                    sb.append("  ").append(genre).append(": ").append(count).append("\n"));
+        }
+
+        JTextArea area = new JTextArea(sb.toString());
+        area.setEditable(false);
+        area.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
+        area.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+
+        JOptionPane.showMessageDialog(this, area, "Catalogue Statistics",
+                JOptionPane.INFORMATION_MESSAGE);
     }
 
     private void onResetSearch() {
