@@ -6,19 +6,55 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
+/**
+ * Main application window for the Book Catalogue desktop application.
+ *
+ * <p><strong>Architecture:</strong> {@code BookGUI} is the <em>View + Controller</em> layer
+ * of a simple two-tier MVC design. All data operations are delegated to {@link Catalogue};
+ * this class is responsible only for rendering state and dispatching user actions.
+ *
+ * <p><strong>UI layout:</strong>
+ * <ul>
+ *   <li><em>NORTH</em> — form panel (input fields + search/filter row)</li>
+ *   <li><em>CENTER</em> — sortable {@link JTable} backed by {@link DefaultTableModel}</li>
+ *   <li><em>SOUTH</em> — action buttons + status bar</li>
+ * </ul>
+ *
+ * <p><strong>Sortable columns:</strong> The {@link DefaultTableModel} overrides
+ * {@link DefaultTableModel#getColumnClass(int)} so that the Year column reports
+ * {@link Integer#TYPE}, enabling numeric (rather than lexicographic) sorting via
+ * {@link TableRowSorter}.
+ *
+ * <p>The application entry point is {@link #main(String[])}.
+ *
+ * @see Catalogue
+ * @see Book
+ */
 public class BookGUI extends JFrame {
 
     private final Catalogue catalogue = new Catalogue();
 
+    /** Input field for the book title used in add/remove/update operations. */
     private final JTextField titleField = new JTextField(15);
     private final JTextField authorField = new JTextField(15);
     private final JTextField publisherField = new JTextField(15);
     private final JTextField yearField = new JTextField(6);
     private final JTextField genreField = new JTextField(10);
+
+    /** Search field for title substring queries. */
     private final JTextField searchTitleField = new JTextField(12);
+    /** Search field for author substring queries. */
     private final JTextField searchAuthorField = new JTextField(12);
+    /** Combo box for genre-based filtering; populated from {@link Catalogue#getDistinctGenres()}. */
     private final JComboBox<String> genreCombo = new JComboBox<>();
 
+    /**
+     * Table model with two behavioural overrides:
+     * <ul>
+     *   <li>Cells are not directly editable — all edits go through the form.</li>
+     *   <li>Column 3 (Year) reports {@link Integer} class for numeric sort order.</li>
+     * </ul>
+     */
     private final DefaultTableModel tableModel = new DefaultTableModel(
             new String[]{"Title", "Author", "Publisher", "Year", "Genre"}, 0) {
         @Override
@@ -33,8 +69,15 @@ public class BookGUI extends JFrame {
     };
     private final JTable table = new JTable(tableModel);
 
+    /** Status bar at the bottom of the window; displays operation results. */
     private final JLabel statusLabel = new JLabel(" ");
 
+    /**
+     * Constructs and initialises the main application window.
+     *
+     * <p>Sets up the layout, attaches the {@link TableRowSorter}, and arranges all
+     * panels. The window is centred on screen and uses the system look-and-feel.
+     */
     public BookGUI() {
         setTitle("Book Catalogue");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
@@ -56,6 +99,15 @@ public class BookGUI extends JFrame {
         setLocationRelativeTo(null);
     }
 
+    /**
+     * Builds the top form panel containing two rows of controls:
+     * <ol>
+     *   <li>Input fields for Title, Author, Publisher, Year, Genre.</li>
+     *   <li>Search-by-title field, search-by-author field, genre combo, and Reset button.</li>
+     * </ol>
+     *
+     * @return a configured {@link JPanel} using {@link GridBagLayout}
+     */
     private JPanel buildFormPanel() {
         JPanel panel = new JPanel(new GridBagLayout());
         panel.setBorder(BorderFactory.createTitledBorder("Book details"));
@@ -111,6 +163,11 @@ public class BookGUI extends JFrame {
         return panel;
     }
 
+    /**
+     * Builds the bottom button panel with action buttons for CRUD and utility operations.
+     *
+     * @return a configured {@link JPanel} using {@link FlowLayout}
+     */
     private JPanel buildButtonPanel() {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 6));
 
@@ -141,6 +198,13 @@ public class BookGUI extends JFrame {
         return panel;
     }
 
+    /**
+     * Handles the "Add book" action.
+     *
+     * <p>Validates that title and author are non-empty and that year is a valid integer,
+     * then delegates to {@link Catalogue#addPublication(Publication)}.
+     * Refreshes the table and genre combo after a successful add.
+     */
     private void onAdd() {
         String title = titleField.getText().trim();
         String author = authorField.getText().trim();
@@ -167,6 +231,12 @@ public class BookGUI extends JFrame {
         setStatus("Book '" + title + "' added.", false);
     }
 
+    /**
+     * Handles the "Remove book" action.
+     *
+     * <p>Reads the title field and calls {@link Catalogue#removePublicationByTitle(String)}.
+     * Shows a status error if the title field is empty or the book is not found.
+     */
     private void onRemove() {
         String title = titleField.getText().trim();
         if (title.isEmpty()) {
@@ -184,6 +254,12 @@ public class BookGUI extends JFrame {
         }
     }
 
+    /**
+     * Handles the "Update book" action.
+     *
+     * <p>Looks up the book by title and applies any non-blank field values as updates.
+     * Fields left blank are not modified, allowing partial updates.
+     */
     private void onUpdate() {
         String title = titleField.getText().trim();
         if (title.isEmpty()) {
@@ -214,6 +290,12 @@ public class BookGUI extends JFrame {
         }
     }
 
+    /**
+     * Handles the "Save to file" action.
+     *
+     * <p>Opens a {@link JFileChooser} and delegates serialisation to
+     * {@link Catalogue#saveToFile(String)}.
+     */
     private void onSave() {
         JFileChooser chooser = new JFileChooser();
         if (chooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
@@ -226,6 +308,13 @@ public class BookGUI extends JFrame {
         }
     }
 
+    /**
+     * Handles the "Load from file" action.
+     *
+     * <p>Opens a {@link JFileChooser} and delegates deserialisation to
+     * {@link Catalogue#loadFromFile(String)}. Refreshes the table and genre combo
+     * after a successful load.
+     */
     private void onLoad() {
         JFileChooser chooser = new JFileChooser();
         if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
@@ -240,18 +329,35 @@ public class BookGUI extends JFrame {
         }
     }
 
+    /**
+     * Filters the table by title substring taken from {@link #searchTitleField}.
+     *
+     * <p>If the field is empty all books are shown; otherwise delegates to
+     * {@link Catalogue#searchByTitle(String)}.
+     */
     private void onSearchByTitle() {
         String query = searchTitleField.getText().trim();
         refreshTable(query.isEmpty() ? catalogue.getAllPublications() : catalogue.searchByTitle(query));
         setStatus(query.isEmpty() ? "Showing all books." : "Search by title: " + query, false);
     }
 
+    /**
+     * Filters the table by author substring taken from {@link #searchAuthorField}.
+     *
+     * <p>If the field is empty all books are shown; otherwise delegates to
+     * {@link Catalogue#searchByAuthor(String)}.
+     */
     private void onSearchByAuthor() {
         String query = searchAuthorField.getText().trim();
         refreshTable(query.isEmpty() ? catalogue.getAllPublications() : catalogue.searchByAuthor(query));
         setStatus(query.isEmpty() ? "Showing all books." : "Search by author: " + query, false);
     }
 
+    /**
+     * Filters the table by the genre selected in {@link #genreCombo}.
+     *
+     * <p>Selecting "All genres" resets the filter and shows every publication.
+     */
     private void onFilterByGenre() {
         String selected = (String) genreCombo.getSelectedItem();
         if (selected == null || selected.equals("All genres")) {
@@ -262,6 +368,12 @@ public class BookGUI extends JFrame {
         }
     }
 
+    /**
+     * Handles the "Export CSV" action.
+     *
+     * <p>Opens a save dialog pre-filled with {@code catalogue.csv} and delegates to
+     * {@link Catalogue#exportToCSV(String)}.
+     */
     private void onExportCSV() {
         JFileChooser chooser = new JFileChooser();
         chooser.setSelectedFile(new File("catalogue.csv"));
@@ -275,6 +387,13 @@ public class BookGUI extends JFrame {
         }
     }
 
+    /**
+     * Displays a modal statistics dialog with catalogue summary data.
+     *
+     * <p>The dialog shows total book count, unique author count, unique genre count,
+     * and a per-genre breakdown obtained from {@link Catalogue#countByGenre()}.
+     * A monospaced font is used to align the columnar output.
+     */
     private void onShowStatistics() {
         int total = catalogue.getAllPublications().size();
         long authors = catalogue.countUniqueAuthors();
@@ -300,6 +419,9 @@ public class BookGUI extends JFrame {
                 JOptionPane.INFORMATION_MESSAGE);
     }
 
+    /**
+     * Clears all search fields and the genre combo selection, restoring the full table view.
+     */
     private void onResetSearch() {
         searchTitleField.setText("");
         searchAuthorField.setText("");
@@ -308,6 +430,12 @@ public class BookGUI extends JFrame {
         setStatus("Search cleared.", false);
     }
 
+    /**
+     * Repopulates the genre combo box from the current catalogue state.
+     *
+     * <p>The "All genres" sentinel is always present at index 0. The previously
+     * selected item is restored after the rebuild to avoid losing the filter state.
+     */
     private void refreshGenreCombo() {
         String current = (String) genreCombo.getSelectedItem();
         genreCombo.removeAllItems();
@@ -318,6 +446,14 @@ public class BookGUI extends JFrame {
         if (current != null) genreCombo.setSelectedItem(current);
     }
 
+    /**
+     * Clears the table and repopulates it from the provided list of publications.
+     *
+     * <p>Non-{@code Book} publications fill only the Title and Year columns;
+     * author, publisher and genre are left blank.
+     *
+     * @param list the publications to display; must not be {@code null}
+     */
     private void refreshTable(List<Publication> list) {
         tableModel.setRowCount(0);
         for (Publication p : list) {
@@ -329,6 +465,9 @@ public class BookGUI extends JFrame {
         }
     }
 
+    /**
+     * Clears all data entry fields in the form panel.
+     */
     private void clearFields() {
         titleField.setText("");
         authorField.setText("");
@@ -337,11 +476,25 @@ public class BookGUI extends JFrame {
         genreField.setText("");
     }
 
+    /**
+     * Updates the status bar with a message styled according to the error flag.
+     *
+     * @param message the status message to display
+     * @param error   {@code true} to render the message in red; {@code false} for green
+     */
     private void setStatus(String message, boolean error) {
         statusLabel.setForeground(error ? Color.RED : new Color(0, 120, 0));
         statusLabel.setText(" " + message);
     }
 
+    /**
+     * Application entry point.
+     *
+     * <p>Applies the system look-and-feel and opens the main window on the
+     * Event Dispatch Thread (EDT) as required by Swing's threading model.
+     *
+     * @param args command-line arguments (not used)
+     */
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             try {
