@@ -70,6 +70,18 @@ public class Catalogue {
                 .toList();
     }
 
+    public void exportToCSV(String filename) throws IOException {
+        try (PrintWriter pw = new PrintWriter(new FileWriter(filename))) {
+            pw.println("Title,Author,Publisher,Year,Genre");
+            for (Publication p : publications) {
+                if (p instanceof Book b) {
+                    pw.printf("\"%s\",\"%s\",\"%s\",%d,\"%s\"%n",
+                            b.getTitle(), b.getAuthor(), b.getPublisher(), b.getYear(), b.getGenre());
+                }
+            }
+        }
+    }
+
     public void saveToFile(String filename) throws IOException {
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(filename))) {
             oos.writeObject(publications);

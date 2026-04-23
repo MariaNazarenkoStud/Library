@@ -1,6 +1,7 @@
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
@@ -111,18 +112,21 @@ public class BookGUI extends JFrame {
         JButton updateBtn = new JButton("Update book");
         JButton saveBtn = new JButton("Save to file");
         JButton loadBtn = new JButton("Load from file");
+        JButton exportBtn = new JButton("Export CSV");
 
         addBtn.addActionListener(e -> onAdd());
         removeBtn.addActionListener(e -> onRemove());
         updateBtn.addActionListener(e -> onUpdate());
         saveBtn.addActionListener(e -> onSave());
         loadBtn.addActionListener(e -> onLoad());
+        exportBtn.addActionListener(e -> onExportCSV());
 
         panel.add(addBtn);
         panel.add(removeBtn);
         panel.add(updateBtn);
         panel.add(saveBtn);
         panel.add(loadBtn);
+        panel.add(exportBtn);
 
         return panel;
     }
@@ -245,6 +249,19 @@ public class BookGUI extends JFrame {
         } else {
             refreshTable(catalogue.filterByGenre(selected));
             setStatus("Filtered by genre: " + selected, false);
+        }
+    }
+
+    private void onExportCSV() {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setSelectedFile(new File("catalogue.csv"));
+        if (chooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+            try {
+                catalogue.exportToCSV(chooser.getSelectedFile().getAbsolutePath());
+                setStatus("Exported to " + chooser.getSelectedFile().getName(), false);
+            } catch (IOException ex) {
+                setStatus("Export error: " + ex.getMessage(), true);
+            }
         }
     }
 
