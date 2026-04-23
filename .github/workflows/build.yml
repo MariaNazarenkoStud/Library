@@ -1,0 +1,115 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*.*.*'
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    name: Compile and Package
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Make build script executable
+        run: chmod +x docs/scripts/build.sh build.sh
+
+      - name: Build JAR (skip Javadoc for speed)
+        run: ./docs/scripts/build.sh --skip-docs
+
+      - name: Verify JAR
+        run: |
+          unzip -p dist/BookCatalogue.jar META-INF/MANIFEST.MF
+          echo "JAR size: $(du -sh dist/BookCatalogue.jar | cut -f1)"
+
+      - name: Upload JAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BookCatalogue-jar
+          path: dist/BookCatalogue.jar
+          retention-days: 30
+
+  docs:
+    name: Generate Javadoc
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Generate Javadoc
+        run: |
+          javadoc \
+            -d docs/javadoc \
+            -sourcepath src \
+            -encoding UTF-8 \
+            -charset UTF-8 \
+            -author -version \
+            -windowtitle "Book Catalogue API" \
+            -doctitle "Book Catalogue — Javadoc" \
+            src/*.java
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs/javadoc
+          destination_dir: javadoc
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build release JAR
+        run: |
+          chmod +x docs/scripts/build.sh
+          ./docs/scripts/build.sh --skip-docs
+
+      - name: Create release archive
+        run: |
+          mkdir -p release/BookCatalogue
+          cp dist/BookCatalogue.jar release/BookCatalogue/
+          cp docs/scripts/run.sh release/BookCatalogue/
+          chmod +x release/BookCatalogue/run.sh
+          cd release
+          zip -r ../BookCatalogue-${{ github.ref_name }}.zip BookCatalogue/
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/BookCatalogue.jar
+            BookCatalogue-${{ github.ref_name }}.zip
+          generate_release_notes: true
