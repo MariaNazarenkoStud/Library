@@ -77,6 +77,8 @@ public class BookGUI extends JFrame {
     /** Status bar at the bottom of the window; displays operation results. */
     private final JLabel statusLabel = new JLabel(" ");
 
+    private static final String KEY_INVALID_YEAR = "error.invalid.year";
+
     /**
      * Constructs and initialises the main application window.
      *
@@ -237,9 +239,9 @@ public class BookGUI extends JFrame {
         try {
             year = Integer.parseInt(yearField.getText().trim());
         } catch (NumberFormatException ex) {
-            ErrorHandler.warn(Messages.get("error.invalid.year"), "onAdd",
+            ErrorHandler.warn(Messages.get(KEY_INVALID_YEAR), "onAdd",
                     "yearInput='" + yearField.getText().trim() + "'");
-            setStatus(Messages.get("error.invalid.year"), true);
+            setStatus(Messages.get(KEY_INVALID_YEAR), true);
             return;
         }
 
@@ -299,9 +301,9 @@ public class BookGUI extends JFrame {
                     try {
                         book.setYear(Integer.parseInt(yearField.getText().trim()));
                     } catch (NumberFormatException ex) {
-                        ErrorHandler.warn(Messages.get("error.invalid.year"), "onUpdate",
+                        ErrorHandler.warn(Messages.get(KEY_INVALID_YEAR), "onUpdate",
                                 "yearInput='" + yearField.getText().trim() + "'");
-                        setStatus(Messages.get("error.invalid.year"), true);
+                        setStatus(Messages.get(KEY_INVALID_YEAR), true);
                         return;
                     }
                 }
